@@ -1,5 +1,8 @@
 const API = 'https://niji-backend.onrender.com';
 
+let currentUser = null;
+let currentUserId = null;
+
 (async () => {
   const res = await fetch(API + '/auth/me', {
     credentials: 'include'
@@ -9,6 +12,8 @@ const API = 'https://niji-backend.onrender.com';
     window.location.href = '/login.html';
     return;
   }
+
+  currentUser = await res.json();
 
   loadUsers();
 })();
@@ -24,12 +29,19 @@ async function loadUsers() {
   container.innerHTML = '';
 
   users.forEach(u => {
+    const isMe = currentUser.id === u.id;
+
     const div = document.createElement('div');
+    div.className = 'user-row';
+
     div.innerHTML = `
       <span>${u.username}</span>
-      <button onclick="deleteUser('${u.id}')">X</button>
-      <button onclick="viewPerms('${u.id}')">Perms</button>
+      <div class="user-actions">
+        <button class="logout-btn" onclick="openPerms('${u.id}')">Perms</button>
+        ${!isMe ? `<button class="logout-btn" onclick="deleteUser('${u.id}')">Del</button>` : ''}
+      </div>
     `;
+
     container.appendChild(div);
   });
 }
@@ -57,11 +69,67 @@ async function deleteUser(id) {
   loadUsers();
 }
 
-async function viewPerms(id) {
-  const res = await fetch(API + '/admin/permissions/' + id, {
+async function openPerms(userId) {
+  currentUserId = userId;
+
+  const res = await fetch(API + '/admin/permissions/' + userId, {
     credentials: 'include'
   });
 
   const perms = await res.json();
-  alert(JSON.stringify(perms, null, 2));
+
+  const container = document.getElementById('permList');
+  container.innerHTML = '';
+
+  perms.forEach(p => {
+    const row = document.createElement('div');
+    row.className = 'perm-row';
+
+    row.innerHTML = `
+      <span>${p.permission}</span>
+      <button class="logout-btn" onclick="removePerm('${p.permission}')">Remove</button>
+    `;
+
+    container.appendChild(row);
+  });
+
+  document.getElementById('permModal').classList.add('open');
+}
+
+async function addPerm() {
+  const input = document.getElementById('permInput');
+  const permission = input.value.trim();
+
+  if (!permission) return;
+
+  await fetch(API + '/admin/permissions', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      userId: currentUserId,
+      permission
+    })
+  });
+
+  input.value = '';
+  openPerms(currentUserId);
+}
+
+async function removePerm(permission) {
+  await fetch(API + '/admin/permissions', {
+    method: 'DELETE',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      userId: currentUserId,
+      permission
+    })
+  });
+
+  openPerms(currentUserId);
+}
+
+function closePerms() {
+  document.getElementById('permModal').classList.remove('open');
 }

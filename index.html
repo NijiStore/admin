@@ -1,22 +1,44 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Admin Panel</title>
+  <title>Niji — Admin</title>
   <link rel="stylesheet" href="../landing/styles.css">
 </head>
 <body>
 
 <div class="login-wrapper">
-  <div class="login-card" style="width: 400px;">
+  <div class="admin-card">
 
-    <div class="login-title">Admin</div>
+    <div class="login-title">Admin Panel</div>
+    <div class="login-sub">User Control</div>
 
-    <div id="userList"></div>
+    <div id="userList" class="user-list"></div>
 
-    <input id="newUser" class="login-input" placeholder="username">
-    <input id="newPass" class="login-input" placeholder="password">
+    <div class="admin-create">
+      <input id="newUser" class="login-input" placeholder="username">
+      <input id="newPass" class="login-input" placeholder="password">
+      <button class="logout-btn" onclick="createUser()">Create</button>
+    </div>
 
-    <button class="logout-btn" onclick="createUser()">Create User</button>
+  </div>
+</div>
+
+<!-- PERMISSION MODAL -->
+<div id="permModal" class="popup-overlay">
+  <div class="admin-card" style="width:300px;">
+
+    <div class="login-title">Permissions</div>
+
+    <!-- ADD PERMISSION -->
+    <div class="admin-create">
+      <input id="permInput" class="login-input" placeholder="permission (e.g. protojournal:read)">
+      <button class="logout-btn" onclick="addPerm()">Add</button>
+    </div>
+
+    <!-- CURRENT PERMISSIONS -->
+    <div id="permList" class="perm-list"></div>
+
+    <button class="logout-btn" onclick="closePerms()">Close</button>
 
   </div>
 </div>
