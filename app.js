@@ -3,6 +3,14 @@ const API = 'https://niji-backend.onrender.com';
 let currentUser = null;
 let currentUserId = null;
 
+import { auth } from 'https://nijistore.github.io/niji-shared/auth.js';
+
+await auth.requireAuth();
+
+if (!auth.can('app:admin')) {
+  auth.hideApp();
+}
+
 (async () => {
   const res = await fetch(API + '/auth/me', {
     credentials: 'include'
