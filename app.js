@@ -1,37 +1,31 @@
 const API = 'https://niji-backend.onrender.com';
 
-let currentUser = null;
-let currentUserId = null;
-
 import { auth } from 'https://nijistore.github.io/niji-shared/auth.js';
 
 await auth.requireAuth();
+await auth.requirePerm('app:admin');
 
-if (!auth.can('app:admin')) {
-  auth.hideApp();
-}
+let currentUser = await auth.getUser();
+let currentUserId = null;
 
-(async () => {
-  const res = await fetch(API + '/auth/me', {
-    credentials: 'include'
-  });
+const ALL_PERMISSIONS = [
+  'admin:access',
+  'app:admin',
+  'app:protojournal',
+  'protojournal:read',
+  'protojournal:write'
+];
 
-  if (!res.ok) {
-    window.location.href = '/login.html';
-    return;
-  }
-
-  currentUser = await res.json();
-
-  loadUsers();
-})();
+loadUsers();
 
 async function loadUsers() {
-  const res = await fetch(API + '/admin/users', {
-    credentials: 'include'
-  });
+  const [usersRes, rolesRes] = await Promise.all([
+    fetch(API + '/admin/users', { credentials: 'include' }),
+    fetch(API + '/admin/roles', { credentials: 'include' })
+  ]);
 
-  const users = await res.json();
+  const users = await usersRes.json();
+  const roles = await rolesRes.json();
 
   const container = document.getElementById('userList');
   container.innerHTML = '';
@@ -39,13 +33,20 @@ async function loadUsers() {
   users.forEach(u => {
     const isMe = currentUser.id === u.id;
 
+    const roleOptions = roles.map(r =>
+      `<option value="${r.id}" ${u.role_id === r.id ? 'selected' : ''}>${r.name}</option>`
+    ).join('');
+
     const div = document.createElement('div');
     div.className = 'user-row';
 
     div.innerHTML = `
       <span>${u.username}</span>
+      <select onchange="changeRole('${u.id}', this.value)">
+        ${roleOptions}
+      </select>
       <div class="user-actions">
-        <button class="logout-btn" onclick="openPerms('${u.id}')">Perms</button>
+        <button class="logout-btn" onclick="openRole('${u.role_id}')">Role</button>
         ${!isMe ? `<button class="logout-btn" onclick="deleteUser('${u.id}')">Del</button>` : ''}
       </div>
     `;
@@ -77,25 +78,37 @@ async function deleteUser(id) {
   loadUsers();
 }
 
-async function openPerms(userId) {
-  currentUserId = userId;
+async function changeRole(userId, roleId) {
+  await fetch(API + '/admin/users/' + userId + '/role', {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ roleId })
+  });
 
-  const res = await fetch(API + '/admin/permissions/' + userId, {
+  loadUsers();
+}
+
+async function openRole(roleId) {
+  currentUserId = roleId;
+
+  const res = await fetch(API + '/admin/roles', {
     credentials: 'include'
   });
 
-  const perms = await res.json();
+  const roles = await res.json();
+  const role = roles.find(r => r.id === roleId);
 
   const container = document.getElementById('permList');
   container.innerHTML = '';
 
-  perms.forEach(p => {
+  (role.permissions || []).forEach(p => {
     const row = document.createElement('div');
     row.className = 'perm-row';
 
     row.innerHTML = `
-      <span>${p.permission}</span>
-      <button class="logout-btn" onclick="removePerm('${p.permission}')">Remove</button>
+      <span>${p}</span>
+      <button class="logout-btn" onclick="removePerm('${p}')">Remove</button>
     `;
 
     container.appendChild(row);
@@ -110,34 +123,89 @@ async function addPerm() {
 
   if (!permission) return;
 
-  await fetch(API + '/admin/permissions', {
-    method: 'POST',
+  const res = await fetch(API + '/admin/roles', {
+    credentials: 'include'
+  });
+
+  const roles = await res.json();
+  const role = roles.find(r => r.id === currentUserId);
+
+  const updated = [...new Set([...(role.permissions || []), permission])];
+
+  await fetch(API + '/admin/roles/' + currentUserId, {
+    method: 'PATCH',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      userId: currentUserId,
-      permission
+      name: role.name,
+      permissions: updated
     })
   });
 
   input.value = '';
-  openPerms(currentUserId);
+  openRole(currentUserId);
 }
 
 async function removePerm(permission) {
-  await fetch(API + '/admin/permissions', {
-    method: 'DELETE',
+  const res = await fetch(API + '/admin/roles', {
+    credentials: 'include'
+  });
+
+  const roles = await res.json();
+  const role = roles.find(r => r.id === currentUserId);
+
+  const updated = (role.permissions || []).filter(p => p !== permission);
+
+  await fetch(API + '/admin/roles/' + currentUserId, {
+    method: 'PATCH',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      userId: currentUserId,
-      permission
+      name: role.name,
+      permissions: updated
     })
   });
 
-  openPerms(currentUserId);
+  openRole(currentUserId);
 }
 
 function closePerms() {
   document.getElementById('permModal').classList.remove('open');
 }
+
+const input = document.getElementById('permInput');
+const suggestionBox = document.getElementById('permSuggestions');
+
+input.addEventListener('input', () => {
+  const value = input.value.toLowerCase();
+
+  const matches = ALL_PERMISSIONS.filter(p =>
+    p.toLowerCase().startsWith(value)
+  );
+
+  suggestionBox.innerHTML = '';
+
+  matches.forEach(p => {
+    const div = document.createElement('div');
+    div.className = 'perm-suggestion';
+    div.textContent = p;
+
+    div.onclick = () => {
+      input.value = p;
+      suggestionBox.innerHTML = '';
+    };
+
+    suggestionBox.appendChild(div);
+  });
+});
+
+input.addEventListener('keydown', (e) => {
+  if (e.key === 'Tab') {
+    const first = suggestionBox.firstChild;
+    if (first) {
+      e.preventDefault();
+      input.value = first.textContent;
+      suggestionBox.innerHTML = '';
+    }
+  }
+});
