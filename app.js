@@ -18,41 +18,13 @@ const ALL_PERMISSIONS = [
 
 loadUsers();
 
-async function loadUsers() {
-  const [usersRes, rolesRes] = await Promise.all([
-    fetch(API + '/admin/users', { credentials: 'include' }),
-    fetch(API + '/admin/roles', { credentials: 'include' })
-  ]);
-
-  const users = await usersRes.json();
-  const roles = await rolesRes.json();
-
-  const container = document.getElementById('userList');
-  container.innerHTML = '';
-
-  users.forEach(u => {
-    const isMe = currentUser.id === u.id;
-
-    const roleOptions = roles.map(r =>
-      `<option value="${r.id}" ${u.role_id === r.id ? 'selected' : ''}>${r.name}</option>`
-    ).join('');
-
-    const div = document.createElement('div');
-    div.className = 'user-row';
-
-    div.innerHTML = `
-      <span>${u.username}</span>
-      <select onchange="changeRole('${u.id}', this.value)">
-        ${roleOptions}
-      </select>
-      <div class="user-actions">
-        <button class="logout-btn" onclick="openRole('${u.role_id}')">Role</button>
-        ${!isMe ? `<button class="logout-btn" onclick="deleteUser('${u.id}')">Del</button>` : ''}
-      </div>
-    `;
-
-    container.appendChild(div);
+async function deleteUser(id) {
+  await fetch(API + '/admin/users/' + id, {
+    method: 'DELETE',
+    credentials: 'include'
   });
+
+  loadUsers();
 }
 
 async function createUser() {
@@ -64,15 +36,6 @@ async function createUser() {
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ username, password })
-  });
-
-  loadUsers();
-}
-
-async function deleteUser(id) {
-  await fetch(API + '/admin/users/' + id, {
-    method: 'DELETE',
-    credentials: 'include'
   });
 
   loadUsers();
@@ -171,6 +134,43 @@ async function removePerm(permission) {
 
 function closePerms() {
   document.getElementById('permModal').classList.remove('open');
+}
+
+async function loadUsers() {
+  const [usersRes, rolesRes] = await Promise.all([
+    fetch(API + '/admin/users', { credentials: 'include' }),
+    fetch(API + '/admin/roles', { credentials: 'include' })
+  ]);
+
+  const users = await usersRes.json();
+  const roles = await rolesRes.json();
+
+  const container = document.getElementById('userList');
+  container.innerHTML = '';
+
+  users.forEach(u => {
+    const isMe = currentUser.id === u.id;
+
+    const roleOptions = roles.map(r =>
+      `<option value="${r.id}" ${u.role_id === r.id ? 'selected' : ''}>${r.name}</option>`
+    ).join('');
+
+    const div = document.createElement('div');
+    div.className = 'user-row';
+
+    div.innerHTML = `
+      <span>${u.username}</span>
+      <select onchange="changeRole('${u.id}', this.value)">
+        ${roleOptions}
+      </select>
+      <div class="user-actions">
+        <button class="logout-btn" onclick="openRole('${u.role_id}')">Role</button>
+        ${!isMe ? `<button class="logout-btn" onclick="deleteUser('${u.id}')">Del</button>` : ''}
+      </div>
+    `;
+
+    container.appendChild(div);
+  });
 }
 
 const input = document.getElementById('permInput');
