@@ -17,7 +17,7 @@
     <div class="admin-create">
       <input id="newUser" class="login-input" placeholder="username">
       <input id="newPass" class="login-input" placeholder="password">
-      <button class="logout-btn" onclick="createUser()">Create</button>
+      <button class="logout-btn" id="create-user-btn">Create</button>
     </div>
 
   </div>
@@ -32,16 +32,18 @@
     <!-- ADD PERMISSION -->
     <div class="admin-create">
       <input id="permInput" class="login-input" placeholder="permission (e.g. protojournal:read)">
-      <button class="logout-btn" onclick="addPerm()">Add</button>
+      <div id="permSuggestions"></div>
+      <button class="logout-btn" id="add-perm-btn">Add</button>
     </div>
 
     <!-- CURRENT PERMISSIONS -->
     <div id="permList" class="perm-list"></div>
 
-    <button class="logout-btn" onclick="closePerms()">Close</button>
+    <button class="logout-btn" id="close-perms-btn">Close</button>
 
   </div>
 </div>
+
 <script type="module" src="app.js"></script>
 </body>
 </html>
